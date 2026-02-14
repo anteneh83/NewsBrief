@@ -1,0 +1,87 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Ethiopic:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@source "../app";
+@source "../components";
+@source "../lib";
+
+@theme {
+  --color-primary: #0D2A4B;
+  --color-primary-dark: #081829;
+  --color-accent: #2EC4B6;
+  --color-accent-light: #4EDDD0;
+  --color-background: #F7F9FB;
+
+  --font-sans: 'Inter', 'Noto Sans Ethiopic', sans-serif;
+}
+
+/* Base Styles */
+:root {
+  --background: #F7F9FB;
+}
+
+body {
+  background-color: var(--background);
+  color: #111827;
+  font-family: var(--font-sans);
+}
+
+/* Component Classes */
+@layer components {
+  .summary-card {
+    @apply bg-white rounded-lg shadow-md p-4 mb-4 transition-shadow;
+  }
+
+  .summary-card:hover {
+    @apply shadow-lg;
+  }
+
+  .topic-chip {
+    @apply px-3 py-1 rounded-full text-sm font-medium transition-colors cursor-pointer border-none;
+    background-color: rgba(46, 196, 182, 0.1);
+    color: var(--color-accent);
+  }
+
+  .topic-chip:hover {
+    background-color: var(--color-accent);
+    color: white;
+  }
+
+  .btn-primary {
+    @apply px-4 py-2 rounded-lg font-medium transition-colors border-none cursor-pointer;
+    background-color: var(--color-primary);
+    color: white;
+  }
+
+  .btn-primary:hover {
+    background-color: var(--color-primary-dark);
+  }
+
+  .btn-primary:disabled {
+    @apply opacity-50 cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply px-4 py-2 rounded-lg font-medium transition-colors border-none cursor-pointer;
+    background-color: var(--color-accent);
+    color: white;
+  }
+
+  .btn-secondary:hover {
+    background-color: var(--color-accent-light);
+  }
+
+  .btn-secondary:disabled {
+    @apply opacity-50 cursor-not-allowed;
+  }
+
+  /* Custom Utilities */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
