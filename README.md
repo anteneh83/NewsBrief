@@ -24,8 +24,9 @@ A lightweight, bilingual (Amharic/English) news summarization platform that deli
 ### Backend
 - **Node.js** with Express
 - **TypeScript** for type safety
-- **SQLite** for database
-- **OpenAI API** for summarization and TTS
+- **MongoDB** for database
+- **OpenAI API** for summarization
+- **gTTS (Google Text-to-Speech)** for audio generation
 - **RSS Parser** for feed ingestion
 - **Node Schedule** for background jobs
 
@@ -96,7 +97,7 @@ The frontend will start on http://localhost:3000
 ```env
 PORT=5000                          # Server port
 OPENAI_API_KEY=your_key_here      # Required for AI features
-DATABASE_PATH=./data/newsbrief.db # SQLite database location
+MONGODB_URI=mongodb+srv://...     # MongoDB connection string
 FEED_UPDATE_INTERVAL=15           # Feed refresh interval (minutes)
 CORS_ORIGIN=http://localhost:3000 # Frontend URL
 ```
@@ -127,8 +128,7 @@ NewsBrief/
 │   │   ├── routes/         # API routes
 │   │   ├── jobs/           # Background job scheduler
 │   │   └── index.ts        # Express server
-│   ├── data/               # SQLite database
-│   └── audio/              # Generated audio files
+│   └── audio/              # Generated audio files (local or persistent mount)
 │
 └── frontend/
     ├── app/                # Next.js app directory

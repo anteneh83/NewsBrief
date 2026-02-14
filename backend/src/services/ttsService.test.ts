@@ -1,23 +1,19 @@
 import { generateAudioForStory } from './ttsService';
 import fs from 'fs';
-import path from 'path';
 
-// Mock OpenAI with conditional logic for success/failure
-jest.mock('openai', () => {
-    return class MockOpenAI {
-        audio = {
-            speech: {
-                create: jest.fn().mockImplementation(async (args) => {
-                    if (args.input.includes('fail')) {
-                        throw new Error('OpenAI specific error');
-                    }
-                    return {
-                        arrayBuffer: async () => new ArrayBuffer(10)
-                    };
-                })
-            }
+// Mock gtts
+jest.mock('gtts', () => {
+    return jest.fn().mockImplementation(() => {
+        return {
+            save: jest.fn().mockImplementation((filePath: string, cb: Function) => {
+                if (filePath.includes('fail')) {
+                    cb(new Error('gTTS specific error'));
+                } else {
+                    cb(null);
+                }
+            })
         };
-    };
+    });
 });
 
 // Mock fs
@@ -43,18 +39,17 @@ describe('ttsService', () => {
         (fs.existsSync as jest.Mock).mockReturnValue(true);
     });
 
-    test('generateAudioForStory calls OpenAI and saves file', async () => {
+    test('generateAudioForStory calls gTTS and saves file', async () => {
         const result = await generateAudioForStory('story123', 'Test Text', 'en');
 
-        // We verify success via side effects (file write) and return value
-        expect(fs.writeFileSync).toHaveBeenCalled();
+        // We verify success via return value and prefix
         expect(result).toContain('story_story123_en');
     });
 
     // Test error case
     test('generateAudioForStory throws error on failure', async () => {
-        // Trigger the conditional failure in the mock
-        await expect(generateAudioForStory('badid', 'fail this', 'en'))
-            .rejects.toThrow('OpenAI specific error');
+        // Trigger the conditional failure in the mock by using an ID that will be in the path
+        await expect(generateAudioForStory('failid', 'some text', 'en'))
+            .rejects.toThrow('gTTS specific error');
     });
 });

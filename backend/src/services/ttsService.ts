@@ -1,12 +1,8 @@
-import OpenAI from 'openai';
+const gTTS = require('gtts');
 import fs from 'fs';
 import path from 'path';
 import { Audio } from '../models/Audio';
 import { Story } from '../models/Story';
-
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY || '',
-});
 
 const audioDir = path.join(__dirname, '../../audio');
 
@@ -15,26 +11,30 @@ if (!fs.existsSync(audioDir)) {
     fs.mkdirSync(audioDir, { recursive: true });
 }
 
+/**
+ * Generate audio for a story using gTTS
+ */
 export async function generateAudioForStory(
     storyId: string | number,
     text: string,
     language: 'en' | 'am'
 ): Promise<string | null> {
     try {
-        const voice = language === 'am' ? 'nova' : 'alloy'; // Nova works better for non-English
-
-        const response = await openai.audio.speech.create({
-            model: 'tts-1',
-            voice: voice,
-            input: text,
-            speed: 1.0,
-        });
-
-        const buffer = Buffer.from(await response.arrayBuffer());
         const fileName = `story_${storyId}_${language}_${Date.now()}.mp3`;
         const filePath = path.join(audioDir, fileName);
 
-        fs.writeFileSync(filePath, buffer);
+        const gtts = new gTTS(text, language);
+
+        await new Promise<void>((resolve, reject) => {
+            gtts.save(filePath, (err: any) => {
+                if (err) {
+                    console.error('gTTS save error:', err);
+                    reject(err);
+                } else {
+                    resolve();
+                }
+            });
+        });
 
         // Save to database
         const duration = Math.ceil(text.split(' ').length / 2.5); // Rough estimate
@@ -47,25 +47,26 @@ export async function generateAudioForStory(
         });
 
         await newAudio.save();
-        console.log(`Generated audio for story ${storyId}`);
+        console.log(`Generated audio for story ${storyId} using gTTS`);
         return filePath;
 
     } catch (error) {
-        console.error('Error generating TTS:', error);
+        console.error('Error generating TTS with gTTS:', error);
         throw error;
     }
 }
 
+/**
+ * Generate aggregate audio for daily brief using gTTS
+ */
 export async function generateDailyBrief(
     slot: 'am' | 'pm',
     language: 'en' | 'am'
 ): Promise<string | null> {
     try {
-        // Get top stories from the last 12 hours
         const timeAgo = new Date();
         timeAgo.setHours(timeAgo.getHours() - 12);
 
-        // Find stories using Mongoose
         const stories = await Story.find({
             summary_lang: language,
             published_at: { $gt: timeAgo }
@@ -77,7 +78,6 @@ export async function generateDailyBrief(
             return null;
         }
 
-        // Create brief text
         const intro = language === 'am'
             ? `የዕለቱ ዜና ማጠቃለያ - ${slot === 'am' ? 'ጠዋት' : 'ማታ'}`
             : `Daily Brief - ${slot === 'am' ? 'Morning' : 'Evening'}`;
@@ -85,26 +85,26 @@ export async function generateDailyBrief(
         let briefText = `${intro}. `;
 
         for (const story of stories) {
-            // In Mongoose schema, summary_bullets is already an array of strings
             const bullets = story.summary_bullets || [];
             briefText += `${story.title}. ${bullets.join('. ')}. `;
         }
 
-        // Generate audio
-        const response = await openai.audio.speech.create({
-            model: 'tts-1',
-            voice: language === 'am' ? 'nova' : 'alloy',
-            input: briefText,
-            speed: 1.0,
-        });
-
-        const buffer = Buffer.from(await response.arrayBuffer());
         const fileName = `daily_brief_${slot}_${language}_${Date.now()}.mp3`;
         const filePath = path.join(audioDir, fileName);
 
-        fs.writeFileSync(filePath, buffer);
+        const gtts = new gTTS(briefText, language);
 
-        // Save to database
+        await new Promise<void>((resolve, reject) => {
+            gtts.save(filePath, (err: any) => {
+                if (err) {
+                    console.error('gTTS daily brief save error:', err);
+                    reject(err);
+                } else {
+                    resolve();
+                }
+            });
+        });
+
         const duration = Math.ceil(briefText.split(' ').length / 2.5);
 
         const newAudio = new Audio({
@@ -115,11 +115,11 @@ export async function generateDailyBrief(
         });
 
         await newAudio.save();
-        console.log(`Generated daily brief: ${slot} ${language}`);
+        console.log(`Generated daily brief: ${slot} ${language} using gTTS`);
         return filePath;
 
     } catch (error) {
-        console.error('Error generating daily brief:', error);
+        console.error('Error generating daily brief with gTTS:', error);
         return null;
     }
 }
