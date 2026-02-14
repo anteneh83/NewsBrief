@@ -36,9 +36,29 @@ app.use('/audio', express.static(path.join(__dirname, '../audio')));
 // API Routes
 app.use('/api', apiRoutes);
 
-// Health check
-app.get('/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+// Basic test endpoint
+app.get('/test', (req, res) => {
+    res.json({ message: 'Server is reachable' });
+});
+
+// Health check with database status
+app.get('/health', async (req, res) => {
+    const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
+    res.json({
+        status: dbStatus === 'connected' ? 'ok' : 'error',
+        database: dbStatus,
+        timestamp: new Date().toISOString()
+    });
+});
+
+// Alias for health check under /api/health
+app.get('/api/health', (req, res) => {
+    const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
+    res.json({
+        status: dbStatus === 'connected' ? 'ok' : 'error',
+        database: dbStatus,
+        timestamp: new Date().toISOString()
+    });
 });
 
 // Start server
