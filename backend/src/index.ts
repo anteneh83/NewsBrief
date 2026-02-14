@@ -33,33 +33,34 @@ app.use(express.urlencoded({ extended: true }));
 // Serve audio files
 app.use('/audio', express.static(path.join(__dirname, '../audio')));
 
-// API Routes
-app.use('/api', apiRoutes);
-
-// Basic test endpoint
+// --- Diagnostic Endpoints (Define before routes for precedence) ---
 app.get('/test', (req, res) => {
-    res.json({ message: 'Server is reachable' });
+    res.json({ message: 'Server is reachable', version: '2.0.0-gTTS' });
 });
 
-// Health check with database status
 app.get('/health', async (req, res) => {
     const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
     res.json({
         status: dbStatus === 'connected' ? 'ok' : 'error',
         database: dbStatus,
+        version: '2.0.0-gTTS',
         timestamp: new Date().toISOString()
     });
 });
 
-// Alias for health check under /api/health
 app.get('/api/health', (req, res) => {
     const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
     res.json({
         status: dbStatus === 'connected' ? 'ok' : 'error',
         database: dbStatus,
+        version: '2.0.0-gTTS',
         timestamp: new Date().toISOString()
     });
 });
+// -------------------------------------------------------------
+
+// API Routes
+app.use('/api', apiRoutes);
 
 // Start server
 const server = app.listen(Number(PORT), '0.0.0.0', () => {

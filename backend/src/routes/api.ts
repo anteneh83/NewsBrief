@@ -5,11 +5,6 @@ import { generateAudioForStory } from '../services/ttsService';
 
 const router = Router();
 
-// GET /api/health - Health check
-router.get('/health', (req, res) => {
-    res.json({ status: 'ok', service: 'api' });
-});
-
 // GET /api/feed - Get stories feed
 router.get('/feed', async (req: Request, res: Response) => {
     const { lang = 'en', topic, since, limit = '20' } = req.query;
