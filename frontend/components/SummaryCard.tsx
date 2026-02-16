@@ -83,7 +83,7 @@ export default function SummaryCard({ story, onPlayAudio }: SummaryCardProps) {
                 </span>
             </div>
 
-            <p className="text-sm text-gray-600 mb-4 line-clamp-3 leading-relaxed">
+            <p className="text-sm text-gray-600 mb-4 leading-relaxed">
                 {summary || (language === 'am' ? 'ማጠቃለያ የለም' : 'No summary available')}
             </p>
 
