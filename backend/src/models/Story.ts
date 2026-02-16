@@ -2,31 +2,51 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IStory extends Document {
     title: string;
-    source: string;
-    url: string;
-    published_at: Date;
-    topic_tags: string[];
-    summary_bullets: string[];
-    summary_lang: 'en' | 'am';
+    summary: {
+        am: string;
+        en: string;
+    };
+    content: string;
+    topic: string;
+    source: {
+        name: string;
+        url: string;
+        logo?: string;
+        category: 'state' | 'private' | 'diaspora';
+    };
+    originalUrl: string;
+    publishedAt: Date;
+    audioUrl?: string;
     content_hash: string;
-    created_at: Date;
+    createdAt: Date;
+    updatedAt: Date;
 }
 
 const StorySchema: Schema = new Schema({
     title: { type: String, required: true },
-    source: { type: String, required: true },
-    url: { type: String, required: true, unique: true },
-    published_at: { type: Date, required: true },
-    topic_tags: [{ type: String }],
-    summary_bullets: [{ type: String }],
-    summary_lang: { type: String, enum: ['en', 'am'], default: 'en' },
+    summary: {
+        am: { type: String, default: '' },
+        en: { type: String, default: '' }
+    },
+    content: { type: String },
+    topic: { type: String },
+    source: {
+        name: { type: String, required: true },
+        url: { type: String, required: true },
+        logo: { type: String },
+        category: { type: String, enum: ['state', 'private', 'diaspora'], required: true }
+    },
+    originalUrl: { type: String, required: true, unique: true },
+    publishedAt: { type: Date, required: true },
+    audioUrl: { type: String },
     content_hash: { type: String, required: true, unique: true },
-    created_at: { type: Date, default: Date.now }
+}, {
+    timestamps: true
 });
 
 // Indexes for performance
-StorySchema.index({ published_at: -1 });
-StorySchema.index({ topic_tags: 1 });
-StorySchema.index({ summary_lang: 1 });
+StorySchema.index({ publishedAt: -1 });
+StorySchema.index({ topic: 1 });
+StorySchema.index({ 'source.name': 1 });
 
 export const Story = mongoose.model<IStory>('Story', StorySchema);

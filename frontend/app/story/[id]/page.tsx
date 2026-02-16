@@ -1,44 +1,39 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { Story, Language } from '@/types';
+import { useState, useEffect, use } from 'react';
+import { Story } from '@/types';
 import { api } from '@/lib/api';
-import Header from '@/components/Header';
-import AudioPlayer from '@/components/AudioPlayer';
-
 import { useLanguage } from '@/context/LanguageContext';
+import Header from '@/components/Header';
+import { format } from 'date-fns';
+import { toggleWatchLater, isSaved } from '@/lib/watchLater';
+import { useRouter } from 'next/navigation';
 
-export default function StoryDetailPage() {
-    const params = useParams();
+export default function StoryPage({ params }: { params: Promise<{ id: string }> }) {
+    const resolvedParams = use(params);
+    const id = resolvedParams.id;
     const router = useRouter();
-    const storyId = params.id as string;
     const { language } = useLanguage();
     const [story, setStory] = useState<Story | null>(null);
-    const [audioUrl, setAudioUrl] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
-    const [loadingAudio, setLoadingAudio] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [saved, setSaved] = useState(false);
 
     useEffect(() => {
         fetchStory();
-    }, [storyId, language]);
+    }, [id]);
+
+    useEffect(() => {
+        if (story?._id) {
+            setSaved(isSaved(story._id));
+        }
+    }, [story?._id]);
 
     const fetchStory = async () => {
         setLoading(true);
-        setError(null);
-
         try {
-            // Pass ID directly as string or number depending on what it looks like?
-            // Actually, standard fetch accepts string/number and converts to string in URL.
-            // But we should not try to parseInt it if it is MongoDB ID.
-            const data = await api.getStory(storyId, language);
-
-            // Ensure mapped ID
-            const storyData = data.story;
-            const id = storyData._id || storyData.id;
-            setStory({ ...storyData, id });
-
+            const data = await api.getStory(id);
+            setStory(data.story);
         } catch (err) {
             console.error('Error fetching story:', err);
             setError(language === 'am' ? 'ዜናውን መጫን አልተቻለም' : 'Failed to load story');
@@ -47,32 +42,31 @@ export default function StoryDetailPage() {
         }
     };
 
-    const handleGenerateAudio = async () => {
-        if (!story) return;
-
-        // Prefer _id or id
-        const id = story.id || story._id;
-        if (!id) return;
-
-        setLoadingAudio(true);
+    const handlePlayAudio = async () => {
+        if (!story?._id) return;
         try {
-            const data = await api.generateStoryAudio(id, language);
+            const data = await api.generateStoryAudio(story._id, language);
             if (data.audio?.url) {
-                setAudioUrl(data.audio.url);
+                window.open(data.audio.url, '_blank');
             }
-        } catch (err) {
+        } catch (err: any) {
             console.error('Error generating audio:', err);
-        } finally {
-            setLoadingAudio(false);
+            alert(err.message || 'Failed to generate audio');
         }
+    };
+
+    const handleSave = () => {
+        if (!story) return;
+        toggleWatchLater(story);
+        setSaved(!saved);
     };
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-background">
+            <div className="min-h-screen bg-background text-gray-900">
                 <Header />
                 <div className="flex justify-center items-center py-20">
-                    <div className="animate-spin rounded-full h-12 w-12 border-4 border-accent border-t-transparent"></div>
+                    <div className="animate-spin rounded-full h-10 w-10 border-[3px] border-accent border-t-transparent"></div>
                 </div>
             </div>
         );
@@ -80,96 +74,120 @@ export default function StoryDetailPage() {
 
     if (error || !story) {
         return (
-            <div className="min-h-screen bg-background">
+            <div className="min-h-screen bg-background text-gray-900">
                 <Header />
-                <div className="container mx-auto px-4 py-8 max-w-4xl">
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 text-center">
-                        {error || (language === 'am' ? 'ዜና አልተገኘም' : 'Story not found')}
-                    </div>
+                <div className="container mx-auto px-4 py-12 text-center">
+                    <p className="text-red-500 mb-4">{error || 'Story not found'}</p>
+                    <button onClick={() => router.push('/')} className="text-accent underline font-medium">
+                        {language === 'am' ? 'ወደ ዋናው ገጽ ይመለሱ' : 'Back to Home'}
+                    </button>
                 </div>
             </div>
         );
     }
 
+    const summary = language === 'am' ? story.summary.am : story.summary.en;
+
     return (
-        <div className="min-h-screen bg-background">
+        <div className="min-h-screen bg-background text-gray-900 pb-20">
             <Header />
 
-            <main className="container mx-auto px-4 py-6 max-w-4xl">
+            <article className="container mx-auto px-4 py-8 max-w-3xl">
                 <button
                     onClick={() => router.back()}
-                    className="flex items-center gap-2 text-accent hover:text-accent-light mb-6 transition-colors"
+                    className="flex items-center gap-2 text-gray-400 hover:text-primary mb-8 transition-colors text-sm font-medium"
                 >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                     </svg>
                     {language === 'am' ? 'ተመለስ' : 'Back'}
                 </button>
 
-                <article className="bg-white rounded-lg shadow-md p-6">
-                    <div className="flex items-center gap-2 mb-4">
-                        <span className="inline-block px-3 py-1 bg-primary/10 text-primary text-sm rounded-full font-medium">
-                            {story.source}
+                <div className="mb-8">
+                    <div className="flex items-center gap-3 mb-4">
+                        <span className="px-2.5 py-1 bg-primary text-white text-[10px] font-bold rounded uppercase tracking-widest shadow-sm">
+                            {story.source.name}
                         </span>
-                        <span className="text-sm text-gray-500">
-                            {new Date(story.published_at).toLocaleDateString()}
+                        <span className="text-[11px] text-gray-400 font-medium">
+                            {format(new Date(story.publishedAt), 'PPP')}
+                        </span>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded border ${story.source.category === 'state' ? 'border-blue-100 text-blue-600' :
+                                story.source.category === 'private' ? 'border-green-100 text-green-600' :
+                                    'border-purple-100 text-purple-600'
+                            } uppercase font-bold`}>
+                            {story.source.category}
                         </span>
                     </div>
 
-                    <h1 className="text-3xl font-bold text-primary mb-6">
+                    <h1 className="text-3xl md:text-5xl font-bold text-primary mb-8 leading-tight tracking-tight">
                         {story.title}
                     </h1>
 
-                    <div className="prose max-w-none mb-6">
-                        <h3 className="text-lg font-semibold text-gray-800 mb-3">
-                            {language === 'am' ? 'ማጠቃለያ' : 'Summary'}
-                        </h3>
-                        <ul className="space-y-2">
-                            {story.summary_bullets.map((bullet, index) => (
-                                <li key={index} className="text-gray-700 leading-relaxed">
-                                    {bullet}
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-
-                    <div className="flex flex-wrap gap-2 mb-6">
-                        {story.topic_tags.map((tag, index) => (
-                            <span key={index} className="topic-chip">
-                                {tag}
-                            </span>
-                        ))}
-                    </div>
-
-                    {audioUrl ? (
-                        <AudioPlayer audioUrl={audioUrl} title={language === 'am' ? 'የድምጽ ማጠቃለያ' : 'Audio Summary'} />
-                    ) : (
+                    <div className="flex flex-wrap items-center gap-4 py-5 border-y border-gray-100 mb-10">
                         <button
-                            onClick={handleGenerateAudio}
-                            disabled={loadingAudio}
-                            className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+                            onClick={handlePlayAudio}
+                            className="flex items-center gap-2.5 px-6 py-3 bg-accent text-white rounded-full font-bold shadow-lg shadow-accent/20 hover:bg-accent-dark transition-all transform hover:-translate-y-0.5 active:translate-y-0"
                         >
-                            {loadingAudio
-                                ? (language === 'am' ? 'ማዘጋጀት...' : 'Generating...')
-                                : (language === 'am' ? 'የድምጽ ማጠቃለያ አድምጥ' : 'Listen to Audio Summary')}
+                            <div className="bg-white/20 p-1 rounded-full">
+                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+                                </svg>
+                            </div>
+                            <span>{language === 'am' ? 'ማጠቃለያውን አዳምጥ' : 'Listen to Brief'}</span>
                         </button>
-                    )}
 
-                    <div className="mt-6 pt-6 border-t border-gray-200">
+                        <button
+                            onClick={handleSave}
+                            className={`flex items-center gap-2.5 px-6 py-3 rounded-full font-bold border transition-all ${saved
+                                    ? 'bg-accent/10 border-accent text-accent'
+                                    : 'bg-white border-gray-200 text-gray-600 hover:border-accent hover:text-accent shadow-sm'
+                                }`}
+                        >
+                            <svg className="w-5 h-5" fill={saved ? "currentColor" : "none"} stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                            </svg>
+                            <span>
+                                {saved
+                                    ? (language === 'am' ? 'ተቀምጧል' : 'Saved')
+                                    : (language === 'am' ? 'ቆይተው ያንብቡ' : 'Save for Later')}
+                            </span>
+                        </button>
+                    </div>
+                </div>
+
+                <div className="prose prose-lg max-w-none">
+                    <div className="bg-primary/5 rounded-3xl p-8 md:p-10 border border-primary/10 mb-12 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-accent/5 rounded-full -mr-16 -mt-16 transition-transform group-hover:scale-110"></div>
+                        <h3 className="text-xs font-black uppercase tracking-[.25em] text-accent mb-6 flex items-center gap-2">
+                            <span className="w-8 h-[2px] bg-accent/30"></span>
+                            {language === 'am' ? 'AI ማጠቃለያ' : 'AI Summary'}
+                        </h3>
+                        <p className="text-gray-800 leading-[1.8] text-[1.1rem] font-medium italic">
+                            {summary || (language === 'am' ? 'ማጠቃለያ በመዘጋጀት ላይ ነው...' : 'Summary is being generated...')}
+                        </p>
+                    </div>
+
+                    <div className="mt-12 pt-10 border-t border-gray-100">
+                        <h3 className="text-xl font-black text-primary mb-6 uppercase tracking-tight">
+                            {language === 'am' ? 'ሙሉ ታሪክ' : 'Original Story'}
+                        </h3>
+                        <p className="text-gray-600 leading-relaxed mb-8 text-[1.05rem]">
+                            {story.content || story.title}
+                        </p>
                         <a
-                            href={story.url}
+                            href={story.originalUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-2 text-accent hover:text-accent-light font-medium transition-colors"
+                            className="inline-flex items-center gap-3 px-8 py-4 bg-primary text-white font-bold rounded-2xl hover:bg-primary/90 transition-all shadow-xl shadow-primary/20"
                         >
-                            {language === 'am' ? 'ሙሉ መጣጥፍ አንብብ' : 'Read Full Article'}
+                            {language === 'am' ? 'ሙሉውን ምንጭ ይመልከቱ' : 'View Original Source'}
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                             </svg>
                         </a>
                     </div>
-                </article>
-            </main>
+                </div>
+            </article>
         </div>
     );
 }

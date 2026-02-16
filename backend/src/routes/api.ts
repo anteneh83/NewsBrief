@@ -7,22 +7,30 @@ const router = Router();
 
 // GET /api/feed - Get stories feed
 router.get('/feed', async (req: Request, res: Response) => {
-    const { lang = 'en', topic, since, limit = '20' } = req.query;
+    const { lang = 'en', topic, source, since, limit = '20' } = req.query;
+
+    console.log('Story Model Schema paths:', Object.keys(Story.schema.paths));
 
     try {
-        const query: any = { summary_lang: lang as string };
+        const query: any = {};
+
+        // Only return stories that have a summary in the requested language
+        query[`summary.${lang}`] = { $ne: '' };
 
         if (topic && topic !== 'all') {
-            // Regex search for topic
-            query.topic_tags = { $regex: topic as string, $options: 'i' };
+            query.topic = { $regex: topic as string, $options: 'i' };
+        }
+
+        if (source && source !== 'all') {
+            query['source.name'] = { $regex: source as string, $options: 'i' };
         }
 
         if (since) {
-            query.published_at = { $gt: new Date(since as string) };
+            query.publishedAt = { $gt: new Date(since as string) };
         }
 
         const stories = await Story.find(query)
-            .sort({ published_at: -1 })
+            .sort({ publishedAt: -1 })
             .limit(Number(limit));
 
         res.json({ stories });
@@ -42,15 +50,15 @@ router.get('/search', async (req: Request, res: Response) => {
 
     try {
         const query = {
-            summary_lang: lang as string,
             $or: [
                 { title: { $regex: q as string, $options: 'i' } },
-                { summary_bullets: { $regex: q as string, $options: 'i' } }
+                { 'summary.en': { $regex: q as string, $options: 'i' } },
+                { 'summary.am': { $regex: q as string, $options: 'i' } }
             ]
         };
 
         const stories = await Story.find(query)
-            .sort({ published_at: -1 })
+            .sort({ publishedAt: -1 })
             .limit(Number(limit));
 
         res.json({ stories });
@@ -63,7 +71,6 @@ router.get('/search', async (req: Request, res: Response) => {
 // GET /api/story/:id - Get single story details
 router.get('/story/:id', async (req: Request, res: Response) => {
     const { id } = req.params;
-    const { lang = 'en' } = req.query;
 
     try {
         const story = await Story.findOne({ _id: id });
@@ -96,16 +103,16 @@ router.get('/daily-brief', async (req: Request, res: Response) => {
         timeAgo.setHours(timeAgo.getHours() - 12);
 
         const stories = await Story.find({
-            summary_lang: lang as string,
-            published_at: { $gt: timeAgo }
+            [`summary.${lang}`]: { $ne: '' },
+            publishedAt: { $gt: timeAgo }
         })
-            .sort({ published_at: -1 })
+            .sort({ publishedAt: -1 })
             .limit(6);
 
         res.json({
             audio: {
                 ...audio.toObject(),
-                url: `/api/audio/${audio._id}` // Use _id
+                url: `/api/audio/${audio._id}`
             },
             stories
         });
@@ -134,13 +141,11 @@ router.get('/audio/:id', async (req: Request, res: Response) => {
 });
 
 // POST /api/story/:id/audio
-router.post('/story/:id/audio', async (req: Request, res: Response) => {
-    const { id } = req.params; // potentially string | string[], usually string
+router.post('/api/story/:id/audio', async (req: Request, res: Response) => {
+    const { id } = req.params;
     const { lang = 'en' } = req.body;
 
     try {
-        // Check if audio exists
-        // Cast id to string explicitly
         const storyId = id as string;
 
         const existing = await Audio.findOne({ story_id: storyId, lang });
@@ -160,8 +165,8 @@ router.post('/story/:id/audio', async (req: Request, res: Response) => {
             return res.status(404).json({ error: 'Story not found' });
         }
 
-        const bullets = story.summary_bullets || [];
-        const text = `${story.title}. ${bullets.join('. ')}`;
+        const summary = lang === 'am' ? story.summary.am : story.summary.en;
+        const text = `${story.title}. ${summary}`;
 
         // Generate audio
         const audioPath = await generateAudioForStory(storyId, text, lang as 'en' | 'am');
@@ -182,7 +187,6 @@ router.post('/story/:id/audio', async (req: Request, res: Response) => {
 
     } catch (err: any) {
         console.error('Error generating audio:', err);
-        // Return the specific error message (e.g. OpenAI quota)
         res.status(500).json({ error: err.message || 'Failed to generate audio' });
     }
 });

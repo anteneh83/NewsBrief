@@ -4,35 +4,37 @@ A lightweight, bilingual (Amharic/English) news summarization platform that deli
 
 ## 🌟 Features
 
-- **Bilingual Support**: Full Amharic and English language support
-- **AI Summarization**: Powered by OpenAI GPT-4 for neutral, concise summaries
-- **Text-to-Speech**: Audio playback for all stories and daily briefs
-- **Daily Brief**: Morning and evening news digests
-- **Topic Filtering**: Economy, Agriculture, Health, Politics, Education, Sports
-- **Search**: Find stories by keywords and topics
-- **Mobile Responsive**: Optimized for mobile devices with data-saver approach
-- **Offline Ready**: Architecture supports caching for offline access
+- **Bilingual Support**: Full Amharic and English language support with instant switching
+- **AI Summarization**: Powered by OpenAI GPT-4 with a robust fallback mechanism for maximum uptime
+- **Watch Later**: Privacy-focused, local-first saving of stories for reading offline or later
+- **Refined Filter Layout**: Side-by-side Topic and Source filters for a professional, compact desktop experience
+- **Text-to-Speech**: High-quality audio playback using gTTS with automatic language detection
+- **Daily Brief**: Curated morning and evening news digests with integrated 'Initiate Briefing' calls-to-action
+- **Automatic Topic Detection**: Intelligent categorization into Economy, Politics, Health, and more
+- **Search**: Global search through headlines and summaries across all sources
+- **Coming Soon Page**: Integrated placeholders for upcoming high-end features like 'Audio Briefcast'
 
 ## 🏗️ Tech Stack
 
 ### Frontend
-- **Next.js 15** with TypeScript
-- **Tailwind CSS** for styling
-- **React Hooks** for state management
-- Mobile-first responsive design
+- **Next.js 15 (App Router)** with TypeScript
+- **Tailwind CSS** for a premium, mobile-first design system
+- **React Hooks & Context API** for state and language management
+- **Local Storage** for "Watch Later" persistence without accounts
 
 ### Backend
 - **Node.js** with Express
-- **TypeScript** for type safety
-- **MongoDB** for database
-- **OpenAI API** for summarization
+- **TypeScript** for typed backend logic
+- **MongoDB** for persistent intelligence storage
+- **OpenAI API** for summaries
 - **gTTS (Google Text-to-Speech)** for audio generation
-- **RSS Parser** for feed ingestion
-- **Node Schedule** for background jobs
+- **RSS Parser** for multi-source ingestion
+- **Node Schedule** for automated ingestion and summarization pipelines
 
 ## 📋 Prerequisites
 
-- Node.js 18+ and npm
+- Node.js 20+ and npm
+- MongoDB instance (local or Atlas)
 - OpenAI API key
 
 ## 🚀 Quick Start
@@ -51,10 +53,11 @@ npm install
 cp .env.example .env
 ```
 
-Edit `.env` and add your OpenAI API key:
+Edit `.env` and configure your keys:
 
 ```env
 OPENAI_API_KEY=your_openai_api_key_here
+MONGODB_URI=your_mongodb_uri
 ```
 
 ### 3. Frontend Setup
@@ -84,11 +87,11 @@ The frontend will start on http://localhost:3000
 
 ## 📱 Usage
 
-1. **Home Feed**: Browse latest news with topic filters
-2. **Daily Brief**: Listen to morning/evening news summaries
-3. **Search**: Find specific topics or keywords
-4. **Story Detail**: Read full summaries and listen to audio
-5. **Language Toggle**: Switch between English (EN) and Amharic (አማ)
+1. **Home Feed**: Browse latest news with side-by-side topic and source filters
+2. **Watch Later**: Click the bookmark icon to save stories; access them via the Header link
+3. **Daily Brief**: Access morning/evening digests with curated summaries
+4. **Search**: Find specific stories or keywords globally
+5. **Language Toggle**: Switch between English (EN) and Amharic (አማ) with a single click
 
 ## 🔧 Configuration
 
@@ -96,10 +99,11 @@ The frontend will start on http://localhost:3000
 
 ```env
 PORT=5000                          # Server port
-OPENAI_API_KEY=your_key_here      # Required for AI features
+OPENAI_API_KEY=your_key_here      # Required for AI summaries
 MONGODB_URI=mongodb+srv://...     # MongoDB connection string
 FEED_UPDATE_INTERVAL=15           # Feed refresh interval (minutes)
 CORS_ORIGIN=http://localhost:3000 # Frontend URL
+TTS_PROVIDER=gTTS                 # Audio engine (defaults to gTTS)
 ```
 
 ### Frontend Environment Variables
@@ -110,12 +114,12 @@ NEXT_PUBLIC_API_URL=http://localhost:5000/api  # Backend API URL
 
 ## 📚 API Endpoints
 
-- `GET /api/feed` - Get news feed with optional filters
-- `GET /api/search?q=query` - Search stories
-- `GET /api/story/:id` - Get single story details
-- `GET /api/daily-brief?slot=am|pm` - Get daily brief
-- `GET /api/audio/:id` - Stream audio file
-- `POST /api/story/:id/audio` - Generate audio for story
+- `GET /api/feed` - Filtered news feed (topic, source, lang, since)
+- `GET /api/search?q=query` - Global search
+- `GET /api/story/:id` - Story details
+- `GET /api/daily-brief?slot=am|pm` - Curated briefing with associated stories
+- `GET /api/audio/:id` - Stream generated audio
+- `POST /api/story/:id/audio` - Trigger TTS generation for a story
 
 ## 🎨 Project Structure
 
@@ -123,22 +127,26 @@ NEXT_PUBLIC_API_URL=http://localhost:5000/api  # Backend API URL
 NewsBrief/
 ├── backend/
 │   ├── src/
-│   │   ├── config/         # Database configuration
-│   │   ├── services/       # Feed, summarizer, TTS services
-│   │   ├── routes/         # API routes
-│   │   ├── jobs/           # Background job scheduler
-│   │   └── index.ts        # Express server
-│   └── audio/              # Generated audio files (local or persistent mount)
+│   │   ├── config/         # Database and environment config
+│   │   ├── services/       # Feeds, Summarizer (GPT), TTS (gTTS)
+│   │   ├── routes/         # Express API routes
+│   │   ├── models/         # Mongoose User and Story models
+│   │   ├── jobs/           # Scheduled ingestion & summaries
+│   │   └── index.ts        # Server entry point
 │
 └── frontend/
-    ├── app/                # Next.js app directory
-    │   ├── page.tsx        # Home feed
-    │   ├── daily-brief/    # Daily brief page
-    │   ├── search/         # Search page
-    │   └── story/[id]/     # Story detail page
-    ├── components/         # React components
-    ├── lib/                # API client utilities
-    └── types/              # TypeScript types
+    ├── app/                # App Router directory
+    │   ├── page.tsx        # Home feed & filters
+    │   ├── watch-later/    # Offline saved stories
+    │   ├── daily-brief/    # Curated intelligence slots
+    │   ├── search/         # Discovery page
+    │   ├── coming-soon/    # Future feature placeholders
+    │   ├── story/[id]/     # Immersive story view
+    │   └── layout.tsx      # Root layout with Header, Footer, etc.
+    ├── components/         # Reusable UI (SummaryCard, Header, etc.)
+    ├── context/            # Global LanguageContext
+    ├── lib/                # API client & Watch Later storage logic
+    └── types/              # Unified TypeScript definitions
 ```
 
 ## 🔄 Background Jobs
@@ -150,18 +158,21 @@ The backend automatically runs:
 
 ## 🌍 News Sources
 
-Currently configured sources:
-- Addis Standard
-- Ethiopian Herald
-- (More sources can be added in `backend/src/services/feedService.ts`)
+Our intelligent ingestion pipeline currently supports:
+- **Fana Broadcasting**
+- **EBC (Ethiopian Broadcasting Corporation)**
+- **ESAT**
+- **Addis Standard**
+- **Ethiopian Herald**
+- **EBS**
 
 ## 🎯 Design Principles
 
-1. **Simplicity First**: Easy to search, read, and listen
-2. **Neutral & Transparent**: No opinions, always show source
-3. **Data-Saver**: Text-first, optimized for low bandwidth
-4. **Bilingual**: Everything works in Amharic and English
-5. **Privacy by Default**: No accounts required
+1. **Premium Aesthetics**: High-end mobile-first UI with modern typography and animations
+2. **Privacy First**: Local-first personalization; no tracking or accounts required
+3. **Resilient Intelligence**: Built-in fallbacks for API outages and ingestion errors
+4. **Cultural Context**: First-class support for Amharic language and local sources
+5. **Clean Performance**: Minimal data usage with text-first summarization
 
 ## 🐛 Troubleshooting
 

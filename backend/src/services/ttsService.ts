@@ -15,7 +15,7 @@ if (!fs.existsSync(audioDir)) {
  * Generate audio for a story using gTTS
  */
 export async function generateAudioForStory(
-    storyId: string | number,
+    storyId: string,
     text: string,
     language: 'en' | 'am'
 ): Promise<string | null> {
@@ -47,6 +47,12 @@ export async function generateAudioForStory(
         });
 
         await newAudio.save();
+
+        // Update story with audio URL (relative path or identifier)
+        await Story.findByIdAndUpdate(storyId, {
+            audioUrl: `/api/audio/${newAudio._id}`
+        });
+
         console.log(`Generated audio for story ${storyId} using gTTS`);
         return filePath;
 
@@ -68,10 +74,10 @@ export async function generateDailyBrief(
         timeAgo.setHours(timeAgo.getHours() - 12);
 
         const stories = await Story.find({
-            summary_lang: language,
-            published_at: { $gt: timeAgo }
+            [`summary.${language}`]: { $ne: '' },
+            publishedAt: { $gt: timeAgo }
         })
-            .sort({ published_at: -1 })
+            .sort({ publishedAt: -1 })
             .limit(6);
 
         if (stories.length === 0) {
@@ -85,8 +91,8 @@ export async function generateDailyBrief(
         let briefText = `${intro}. `;
 
         for (const story of stories) {
-            const bullets = story.summary_bullets || [];
-            briefText += `${story.title}. ${bullets.join('. ')}. `;
+            const summary = language === 'am' ? story.summary.am : story.summary.en;
+            briefText += `${story.title}. ${summary}. `;
         }
 
         const fileName = `daily_brief_${slot}_${language}_${Date.now()}.mp3`;

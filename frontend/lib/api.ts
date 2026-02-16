@@ -1,10 +1,11 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 export const api = {
-    async getFeed(params: { lang?: string; topic?: string; since?: string; limit?: number }) {
+    async getFeed(params: { lang?: string; topic?: string; source?: string; since?: string; limit?: number }) {
         const queryParams = new URLSearchParams();
         if (params.lang) queryParams.append('lang', params.lang);
         if (params.topic) queryParams.append('topic', params.topic);
+        if (params.source) queryParams.append('source', params.source);
         if (params.since) queryParams.append('since', params.since);
         if (params.limit) queryParams.append('limit', params.limit.toString());
 

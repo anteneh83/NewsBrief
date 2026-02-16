@@ -69,6 +69,13 @@ export default function Header() {
                     >
                         {language === 'am' ? 'ፈልግ' : 'Search'}
                     </Link>
+                    <Link
+                        href="/watch-later"
+                        className={`text-sm font-medium transition-colors ${isActive('/watch-later') ? 'text-accent' : 'text-gray-300 hover:text-white'
+                            }`}
+                    >
+                        {language === 'am' ? 'ቆይተው የሚነበቡ' : 'Watch Later'}
+                    </Link>
                 </nav>
             </div>
         </header>

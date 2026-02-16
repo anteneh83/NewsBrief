@@ -1,14 +1,24 @@
 export interface Story {
     _id?: string;
-    id?: string | number; // For backward compatibility or mapped ID
+    id?: string | number;
     title: string;
-    source: string;
-    url: string;
-    published_at: string;
-    topic_tags: string[];
-    summary_bullets: string[];
-    summary_lang: string;
-    created_at: string;
+    summary: {
+        am: string;
+        en: string;
+    };
+    content?: string;
+    topic?: string;
+    source: {
+        name: string;
+        url: string;
+        logo?: string;
+        category: 'state' | 'private' | 'diaspora';
+    };
+    originalUrl: string;
+    publishedAt: string;
+    audioUrl?: string;
+    createdAt?: string;
+    updatedAt?: string;
 }
 
 export interface Audio {

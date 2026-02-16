@@ -19,53 +19,46 @@ export async function summarizeStory(
     try {
         const languageName = language === 'am' ? 'Amharic' : 'English';
 
-        const prompt = `Summarize this news article neutrally in simple ${languageName}. 
-Output 3-5 bullet points (max 120 words total). 
-Include no opinion. 
-If the text has insufficient details, say "Insufficient details".
-
-Article Title: ${title}
-Article Content: ${content}
-
-Format your response as JSON:
+        const systemPrompt = `You are a neutral news summarizer for an Ethiopian news aggregator. 
+Generate a concise, unbiased summary in ${languageName}.
+Return a JSON object with this structure:
 {
-  "title": "Clear headline",
-  "bullets": ["point 1", "point 2", "point 3"],
+  "title": "Optimized neutral title",
+  "bullets": ["Bullet point 1", "Bullet point 2", "Bullet point 3"],
   "language": "${language}"
 }`;
 
         const response = await openai.chat.completions.create({
-            model: 'gpt-4o-mini',
+            model: "gpt-4o",
             messages: [
-                {
-                    role: 'system',
-                    content: 'You are a neutral news summarizer. Always output valid JSON.'
-                },
-                {
-                    role: 'user',
-                    content: prompt
-                }
+                { role: "system", content: systemPrompt },
+                { role: "user", content: `Title: ${title}\n\nContent: ${content}` }
             ],
-            temperature: 0.3,
-            max_tokens: 300,
+            response_format: { type: "json_object" }
         });
 
-        const content_text = response.choices[0]?.message?.content;
-        if (!content_text) {
-            throw new Error('No response from OpenAI');
-        }
-
-        // Parse JSON response
-        const jsonMatch = content_text.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) {
-            throw new Error('Invalid JSON in response');
-        }
-
-        const result: SummaryResult = JSON.parse(jsonMatch[0]);
+        const summaryJson = response.choices[0]?.message?.content || '{}';
+        const result = JSON.parse(summaryJson) as SummaryResult;
         return result;
-    } catch (error) {
-        console.error('Error summarizing story:', error);
-        return null;
+    } catch (error: any) {
+        console.error('Error summarizing story:', error.message || error);
+
+        // Fallback for quota issues or other errors
+        const fallbackBullets = content
+            .split(/[.!?]/)
+            .filter(s => s.trim().length > 20)
+            .slice(0, 3)
+            .map(s => s.trim() + '.');
+
+        if (fallbackBullets.length === 0) {
+            fallbackBullets.push(title);
+        }
+
+        return {
+            title: title,
+            bullets: fallbackBullets,
+            language: language
+        };
     }
 }
 
@@ -73,55 +66,36 @@ export async function summarizeUnsummarizedStories(): Promise<void> {
     console.log('Starting story summarization...');
 
     try {
-        // Find stories that haven't been summarized yet (empty summary_bullets)
+        // Find stories that are missing either English or Amharic summaries
         const storiesToSummarize = await Story.find({
             $or: [
-                { summary_bullets: { $exists: false } },
-                { summary_bullets: { $size: 0 } }
+                { 'summary.en': { $in: [null, ''] } },
+                { 'summary.am': { $in: [null, ''] } }
             ]
-        }).limit(5); // Limit to 5 at a time to avoid rate limits
+        }).limit(5);
 
         for (const story of storiesToSummarize) {
             console.log(`Summarizing ${story.title}...`);
+            const content = story.content || story.title;
 
-            // 1. Generate English Summary
-            const summaryEn = await summarizeStory(story.title, story.title, 'en'); // Using title as content for now
-
-            if (summaryEn) {
-                // Update the original story with English summary
-                story.summary_bullets = summaryEn.bullets;
-                story.summary_lang = 'en';
-                await story.save();
-                console.log(`Summarized story ${story._id} in English`);
-            }
-
-            // 2. Generate Amharic Summary
-            // We create a COPY of the story for the Amharic version
-            const summaryAm = await summarizeStory(story.title, story.title, 'am');
-
-            if (summaryAm) {
-                // Check if Amharic version already exists (to prevent duplicates if job crashes)
-                const existingAm = await Story.findOne({
-                    url: story.url,
-                    summary_lang: 'am'
-                });
-
-                if (!existingAm) {
-                    const amStory = new Story({
-                        title: story.title, // Title remains same (or could be translated)
-                        source: story.source,
-                        url: story.url,
-                        published_at: story.published_at,
-                        topic_tags: story.topic_tags,
-                        content_hash: story.content_hash,
-                        summary_bullets: summaryAm.bullets,
-                        summary_lang: 'am'
-                    });
-
-                    await amStory.save();
-                    console.log(`Created Amharic version for story ${story.url}`);
+            // 1. Generate English Summary if missing
+            if (!story.summary.en) {
+                const resultEn = await summarizeStory(story.title, content, 'en');
+                if (resultEn) {
+                    story.summary.en = resultEn.bullets.join(' ');
                 }
             }
+
+            // 2. Generate Amharic Summary if missing
+            if (!story.summary.am) {
+                const resultAm = await summarizeStory(story.title, content, 'am');
+                if (resultAm) {
+                    story.summary.am = resultAm.bullets.join(' ');
+                }
+            }
+
+            await story.save();
+            console.log(`Updated summaries for story: ${story.title}`);
 
             // Small delay to be nice to OpenAI
             await new Promise(resolve => setTimeout(resolve, 1000));
